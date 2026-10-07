@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --uji-ink: #0b3d2e;
+  --uji-orange: #f18a00;
+  --uji-court: #1f7a4c;
+  --uji-mist: #e8f3ec;
+  --uji-sky: #cfe8ff;
+  --background: #eef6f1;
+  --foreground: #0b3d2e;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@theme inline {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, var(--uji-sky), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 100% 0%, #ffe6b8, transparent 50%),
+    linear-gradient(180deg, var(--uji-mist), var(--background) 40%);
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 0.55s ease-out both;
+}
+
+.animate-rise-delay {
+  animation: rise-in 0.65s ease-out 0.12s both;
+}

@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    ports:
+      - "${APP_PORT:-4321}:4321"
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      NODE_ENV: production
+      PORT: 4321
+    restart: unless-stopped
