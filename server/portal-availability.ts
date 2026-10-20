@@ -1,4 +1,9 @@
-import { SPORTS, type AvailabilitySlot, type Court, type SportId } from "../shared/uji.js";
+import {
+  ZONES,
+  type AvailabilitySlot,
+  type Court,
+  type ZoneId,
+} from "../shared/uji.js";
 import { CookieJar } from "./cookie-jar.js";
 import { parseDisponibilidadHtml } from "./disponibilidad.js";
 import { tr } from "./locale.js";
@@ -57,42 +62,15 @@ function paramParts(sql: string) {
   return { name: match[1], value: match[2], personaId: match[3] };
 }
 
-function wantedTypeLabels(sportId?: SportId) {
-  if (!sportId) return [/raquet/i, /aire|lliure/i, /pavell|poliesport/i];
-  if (sportId === "football7" || sportId === "volleyball") {
-    return [/aire|lliure/i, /raquet/i];
-  }
-  return [/raquet/i];
-}
-
-function typesCovered(
-  buckets: Map<string, { courts: Map<string, Court> }>,
-  sportId?: SportId,
-) {
-  const ids = new Set<string>();
-  for (const bucket of buckets.values()) {
-    for (const court of bucket.courts.values()) ids.add(court.sportId);
-  }
-  if (sportId) return ids.has(sportId);
-  return SPORTS.every((sport) => ids.has(sport.id));
-}
-
-function pickTypes(buttons: ParamButton[], sportId?: SportId) {
+function pickTypes(buttons: ParamButton[], zone?: ZoneId) {
   const types = buttons.filter((button) => {
     const parts = paramParts(button.sql);
     return parts && /TI-USUARIO/i.test(parts.name);
   });
-  const chosen: ParamButton[] = [];
-  for (const pattern of wantedTypeLabels(sportId)) {
-    const hit = types.find(
-      (button) =>
-        pattern.test(button.label) &&
-        !chosen.some((item) => item.id === button.id),
-    );
-    if (hit) chosen.push(hit);
-  }
-  if (chosen.length) return chosen;
-  return types.filter((button) => !/taula/i.test(button.label)).slice(0, 1);
+  if (!zone) return types;
+  const pattern = ZONES.find((item) => item.id === zone)?.match;
+  if (!pattern) return [];
+  return types.filter((button) => pattern.test(button.label));
 }
 
 async function postParam(jar: CookieJar, button: ParamButton) {
@@ -169,7 +147,7 @@ async function fetchGrid(jar: CookieJar, iso: string, personaId: string) {
 export async function loadPortalAvailability(
   jar: CookieJar,
   dates: string[],
-  options: { sportId?: SportId; personaId?: string } = {},
+  options: { zone?: ZoneId; personaId?: string } = {},
 ) {
   type ParsedBlock = ReturnType<typeof parseDisponibilidadHtml>["blocks"][number];
   const buckets = new Map<
@@ -190,10 +168,7 @@ export async function loadPortalAvailability(
   if (!dates.length) return { personaId: options.personaId, days: [] };
 
   const tiposHtml = await fetchTipos(jar, dates[0]);
-  const typeButtons = pickTypes(
-    extractParamButtons(tiposHtml),
-    options.sportId,
-  );
+  const typeButtons = pickTypes(extractParamButtons(tiposHtml), options.zone);
   let personaId =
     options.personaId ||
     typeButtons.map((button) => paramParts(button.sql)?.personaId).find(Boolean);
@@ -206,7 +181,7 @@ export async function loadPortalAvailability(
       if (!(error instanceof Error) || error.message !== "firma") throw error;
       const fresh = pickTypes(
         extractParamButtons(await fetchTipos(jar, dates[0])),
-        options.sportId,
+        options.zone,
       ).find((button) => button.label === typeButton.label);
       if (!fresh) throw new Error(tr("err.firma"));
       await postParam(jar, fresh);
@@ -243,11 +218,10 @@ export async function loadPortalAvailability(
           bucket.blocks.set(block.court.id, block);
         }
         console.log(
-          `[uji-live] grid ${date} type=${typeButton.label} courts=${parsed.courts.length}`,
+          `[uji-live] grid ${date} type=${typeButton.label} courts=${parsed.courts.length} sports=${[...new Set(parsed.courts.map((court) => court.label ?? court.sportId))].join(",")}`,
         );
       }
     }
-    if (typesCovered(buckets, options.sportId)) break;
   }
 
   return {

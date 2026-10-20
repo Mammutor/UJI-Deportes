@@ -11,7 +11,9 @@ export type SportId =
   | "fronto"
   | "ironfit"
   | "football7"
-  | "volleyball";
+  | "volleyball"
+  | "tableTennis"
+  | "other";
 
 export interface Sport {
   id: SportId;
@@ -31,6 +33,8 @@ export interface Court {
   indoor: boolean;
   /** Facility code from e-UJIer, e.g. DAA012PA. */
   code?: string;
+  /** Heading for a facility the catalog does not name, taken from the portal. */
+  label?: string;
 }
 
 export type SlotStatus = "available" | "booked" | "blocked" | "past";
@@ -147,7 +151,7 @@ export const SPORTS: Sport[] = [
     id: "badminton",
     name: "Badminton",
     nameCa: "Bàdminton",
-    zone: "Pavelló",
+    zone: "Zona de raquetes",
     slotMinutes: 30,
     maxHours: 1.5,
   },
@@ -155,7 +159,7 @@ export const SPORTS: Sport[] = [
     id: "escalada",
     name: "Climbing",
     nameCa: "Escalada/Boulder",
-    zone: "Pavelló",
+    zone: "Zona de raquetes",
     slotMinutes: 30,
     maxHours: 1.5,
   },
@@ -171,7 +175,7 @@ export const SPORTS: Sport[] = [
     id: "ironfit",
     name: "Ironfit",
     nameCa: "Ironfit",
-    zone: "Pavelló",
+    zone: "Zona de raquetes",
     slotMinutes: 30,
     maxHours: 1.5,
   },
@@ -191,7 +195,86 @@ export const SPORTS: Sport[] = [
     slotMinutes: 30,
     maxHours: 1.5,
   },
+  {
+    id: "tableTennis",
+    name: "Table tennis",
+    nameCa: "Tennis taula",
+    zone: "Tennis taula",
+    slotMinutes: 30,
+    maxHours: 1.5,
+  },
+  {
+    id: "other",
+    name: "Other",
+    nameCa: "Altres",
+    zone: "Zona de raquetes",
+    slotMinutes: 30,
+    maxHours: 1.5,
+  },
 ];
+
+/** e-UJIer reservation types. One request returns every court in that type. */
+export const ZONES = [
+  { id: "rackets", match: /raquet/i },
+  { id: "pavilion", match: /pavell|poliesport/i },
+  { id: "outdoor", match: /aire|lliure/i },
+  { id: "table", match: /taula/i },
+] as const;
+
+export type ZoneId = (typeof ZONES)[number]["id"];
+
+const ZONE_FOR_SPORT: Record<SportId, ZoneId> = {
+  padel: "rackets",
+  padelVidre: "rackets",
+  tennis: "rackets",
+  squash: "rackets",
+  pickleball: "rackets",
+  badminton: "rackets",
+  fronto: "rackets",
+  ironfit: "rackets",
+  escalada: "rackets",
+  football7: "outdoor",
+  volleyball: "outdoor",
+  tableTennis: "table",
+  other: "rackets",
+};
+
+export function zoneForSport(id: SportId): ZoneId {
+  return ZONE_FOR_SPORT[id];
+}
+
+/** Map a portal facility name to a sport. Null means show it under its own name. */
+export function mapFacilityToSport(name: string): SportId | null {
+  const n = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  if (n.includes("vidre")) return "padelVidre";
+  if (n.includes("padel")) return "padel";
+  if (n.includes("taula") || n.includes("ping")) return "tableTennis";
+  if (n.includes("tennis") || n.includes("tenis")) return "tennis";
+  if (n.includes("esquaix") || n.includes("squash")) return "squash";
+  if (n.includes("pickle")) return "pickleball";
+  if (n.includes("badminton") || n.includes("badmint")) return "badminton";
+  if (n.includes("escalada") || n.includes("boulder")) return "escalada";
+  if (n.includes("front")) return "fronto";
+  if (n.includes("ironfit") || n.includes("ironlift") || n.includes("iron")) {
+    return "ironfit";
+  }
+  if (
+    n.includes("rugbi") ||
+    n.includes("rugby") ||
+    n.includes("futbol 11") ||
+    n.includes("futbol11") ||
+    n.includes("sala") ||
+    n.includes("futsal")
+  ) {
+    return null;
+  }
+  if (n.includes("futbol") || n.includes("football")) return "football7";
+  if (n.includes("volei") || n.includes("volley")) return "volleyball";
+  return null;
+}
 
 /** Half-hour blocks allowed for a given maxHours (e.g. 1.5 → 3). */
 export function maxHalfHourBlocks(maxHours: number): number {

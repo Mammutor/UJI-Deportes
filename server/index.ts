@@ -8,8 +8,11 @@ import {
   COURTS,
   SPORTS,
   UJI_ENDPOINTS,
+  ZONES,
   getConfiguredMode,
+  zoneForSport,
   type SportId,
+  type ZoneId,
 } from "../shared/uji.js";
 import {
   bookLiveSlots,
@@ -106,25 +109,6 @@ function liveCourtsFallback(
     warning: reason,
     sessionMeta: liveSessionInfo(null),
   };
-}
-
-function mapTipoToSportId(name: string): SportId | null {
-  const n = name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  if (n.includes("vidre")) return "padelVidre";
-  if (n.includes("padel") || n.includes("paddle")) return "padel";
-  if (n.includes("tenis") || n.includes("tennis")) return "tennis";
-  if (n.includes("esquaix") || n.includes("squash")) return "squash";
-  if (n.includes("pickle")) return "pickleball";
-  if (n.includes("badminton") || n.includes("badmint")) return "badminton";
-  if (n.includes("escalada") || n.includes("boulder")) return "escalada";
-  if (n.includes("front")) return "fronto";
-  if (n.includes("ironfit") || n.includes("iron")) return "ironfit";
-  if (n.includes("futbol") || n.includes("football")) return "football7";
-  if (n.includes("volei") || n.includes("volley")) return "volleyball";
-  return null;
 }
 
 app.get("/api/health", (c) =>
@@ -257,12 +241,6 @@ app.post("/api/uji/proxy", async (c) => {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function sportsInView(sportId: SportId | undefined): SportId[] {
-  if (!sportId) return SPORTS.map((sport) => sport.id);
-  if (sportId === "padel") return ["padel", "padelVidre"];
-  return [sportId];
-}
-
 function parseBatchDates(raw: string | undefined) {
   return [
     ...new Set(
@@ -278,16 +256,15 @@ app.get("/api/availability/batch", async (c) => {
   const session = await readSession(c.req.header("cookie"));
   if (!session) return c.json({ error: tr("err.notAuthenticated") }, 401);
 
-  const scope = c.req.query("scope") === "all" ? "all" : "sport";
-  const requestedSport = c.req.query("sportId") as SportId | undefined;
-  const knownSport = SPORTS.some((sport) => sport.id === requestedSport);
+  const scope = c.req.query("scope") === "all" ? "all" : "zone";
+  const requestedZone = c.req.query("zone") as ZoneId | undefined;
+  const knownZone = ZONES.some((zone) => zone.id === requestedZone);
   const dates = parseBatchDates(c.req.query("dates"));
-  if (!dates.length || (scope === "sport" && !knownSport)) {
+  if (!dates.length || (scope === "zone" && !knownZone)) {
     return c.json({ error: tr("err.sportDate") }, 400);
   }
 
-  const sportId = scope === "sport" ? requestedSport : undefined;
-  const sportIds = sportsInView(sportId);
+  const zone = scope === "zone" ? requestedZone : undefined;
 
   let liveJar: ReturnType<typeof requireLiveJar>;
   try {
@@ -297,7 +274,7 @@ app.get("/api/availability/batch", async (c) => {
       error instanceof Error ? error.message : tr("err.sessionMissing");
     return c.json({
       scope,
-      sportId,
+      zone,
       live: false,
       needsRelogin: true,
       warning: reason,
@@ -320,14 +297,13 @@ app.get("/api/availability/batch", async (c) => {
   let days;
   try {
     const loaded = await loadPortalAvailability(jar, dates, {
-      sportId,
+      zone,
       personaId: live.personaId,
     });
     if (loaded.personaId) setLivePersonaId(live.sid, loaded.personaId);
     days = loaded.days.map((day) => {
-      const accepted = sportsInView(sportId);
-      const courts = day.courts.filter((court) => accepted.includes(court.sportId));
-      const slots = day.slots.filter((slot) => accepted.includes(slot.sportId));
+      const courts = day.courts;
+      const slots = day.slots;
       if (!courts.length) {
         return {
           date: day.date,
@@ -378,12 +354,12 @@ app.get("/api/availability/batch", async (c) => {
   const persona = days.map((day) => day.persona).find(Boolean);
   if (persona) setLivePersonaId(live.sid, persona);
   console.log(
-    `[uji-live] availability days=${dates.length} scope=${scope} ms=${Date.now() - started}`,
+    `[uji-live] availability days=${dates.length} scope=${scope} zone=${zone ?? "all"} ms=${Date.now() - started}`,
   );
 
   return c.json({
     scope,
-    sportId,
+    zone,
     live: days.some((day) => day.live),
     warning: days.find((day) => day.warning)?.warning,
     needsRelogin: days.some((day) => day.needsRelogin),
@@ -455,7 +431,7 @@ app.get("/api/availability", async (c) => {
       const loaded = formBody
         ? null
         : await loadPortalAvailability(jar, [date], {
-            sportId,
+            zone: zoneForSport(sportId),
             personaId: live.personaId,
           });
       const disp = formBody
@@ -479,11 +455,9 @@ app.get("/api/availability", async (c) => {
         .map((s) => extractPersonaId(s.live?.plsql))
         .find(Boolean);
       if (personaFromSlots) setLivePersonaId(live.sid, personaFromSlots);
-      const courts = parsed.courts.filter(
-        (x) => x.sportId === sportId && (!courtId || x.id === courtId),
-      );
+      const courts = parsed.courts.filter((x) => !courtId || x.id === courtId);
       const slots = parsed.slots.filter(
-        (s) => s.sportId === sportId && (!courtId || s.courtId === courtId),
+        (s) => !courtId || s.courtId === courtId,
       );
 
       if (!parsed.courts.length) {

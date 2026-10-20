@@ -1,4 +1,8 @@
-import type { AvailabilitySlot, Court, SportId } from "../shared/uji.js";
+import {
+  mapFacilityToSport,
+  type AvailabilitySlot,
+  type Court,
+} from "../shared/uji.js";
 
 export type LiveCourtBlock = {
   court: Court;
@@ -16,23 +20,8 @@ function decodeHtml(value: string) {
     .replace(/&nbsp;?/gi, " ");
 }
 
-function mapCourtNameToSport(name: string): SportId {
-  const n = name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  if (n.includes("vidre")) return "padelVidre";
-  if (n.includes("padel")) return "padel";
-  if (n.includes("tennis") || n.includes("tenis")) return "tennis";
-  if (n.includes("esquaix") || n.includes("squash")) return "squash";
-  if (n.includes("pickle")) return "pickleball";
-  if (n.includes("badminton") || n.includes("badmint")) return "badminton";
-  if (n.includes("escalada") || n.includes("boulder")) return "escalada";
-  if (n.includes("front")) return "fronto";
-  if (n.includes("ironfit") || n.includes("iron")) return "ironfit";
-  if (n.includes("futbol") || n.includes("football")) return "football7";
-  if (n.includes("volei") || n.includes("volley")) return "volleyball";
-  return "padel";
+function familyLabel(name: string) {
+  return name.replace(/\s+\d+\s*$/u, "").trim() || name;
 }
 
 function parseMaxHours(comment: string): number {
@@ -132,12 +121,13 @@ export function parseDisponibilidadHtml(html: string): {
 
     const instalacionMatch = section.match(/CUADRO_HORA_RES_INST_(\d+)_/i);
     const instalacionId = instalacionMatch?.[1] ?? code;
-    const sportId = mapCourtNameToSport(name);
+    const sportId = mapFacilityToSport(name);
     const court: Court = {
       id: `uji-${instalacionId}`,
       name,
       code,
-      sportId,
+      sportId: sportId ?? "other",
+      label: sportId ? undefined : familyLabel(name),
       indoor:
         /PC$/i.test(code) ||
         /interior|esquaix|badminton|ironfit|escalada/i.test(name),

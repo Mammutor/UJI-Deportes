@@ -1,4 +1,9 @@
-import type { AvailabilitySlot, Booking, SportId } from "../shared/uji.js";
+import {
+  mapFacilityToSport,
+  type AvailabilitySlot,
+  type Booking,
+  type SportId,
+} from "../shared/uji.js";
 import { CookieJar } from "./cookie-jar.js";
 import { tr } from "./locale.js";
 import { loadPortalAvailability } from "./portal-availability.js";
@@ -71,22 +76,7 @@ function assertNoFirmaError(body: string) {
 }
 
 function mapCourtNameToSport(name: string): SportId {
-  const n = name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  if (n.includes("vidre")) return "padelVidre";
-  if (n.includes("padel")) return "padel";
-  if (n.includes("tennis") || n.includes("tenis")) return "tennis";
-  if (n.includes("esquaix") || n.includes("squash")) return "squash";
-  if (n.includes("pickle")) return "pickleball";
-  if (n.includes("badminton") || n.includes("badmint")) return "badminton";
-  if (n.includes("escalada") || n.includes("boulder")) return "escalada";
-  if (n.includes("front")) return "fronto";
-  if (n.includes("ironfit") || n.includes("iron")) return "ironfit";
-  if (n.includes("futbol") || n.includes("football")) return "football7";
-  if (n.includes("volei") || n.includes("volley")) return "volleyball";
-  return "padel";
+  return mapFacilityToSport(name) ?? "other";
 }
 
 function isoFromPortalDate(raw: string): string {

@@ -17,13 +17,15 @@ import {
   logout,
   maxHalfHourBlocks,
   SPORTS,
+  ZONES,
   type AvailabilityDay,
   type AvailabilityScope,
   type AvailabilitySlot,
-  type SportId,
+  type Court,
+  type ZoneId,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { sportNameKey, zoneKeyForSport, type Locale } from "../../shared/i18n";
+import { sportNameKey, type Locale, type MessageKey } from "../../shared/i18n";
 
 function isoToday() {
   const d = new Date();
@@ -61,9 +63,15 @@ function areConsecutive(a: AvailabilitySlot, b: AvailabilitySlot) {
   );
 }
 
-function sportsInView(sportId: SportId): SportId[] {
-  if (sportId === "padel") return ["padel", "padelVidre"];
-  return [sportId];
+const ZONE_KEY: Record<ZoneId, MessageKey> = {
+  rackets: "zone.rackets",
+  pavilion: "zone.pavilion",
+  outdoor: "zone.outdoor",
+  table: "zone.table",
+};
+
+function groupKey(court: Court) {
+  return court.label ?? court.sportId;
 }
 
 type LoadMode = "day" | "week" | "dayAll" | "weekAll";
@@ -97,7 +105,7 @@ type DayCache = {
 
 export function CourtBrowser() {
   const { t, locale } = useI18n();
-  const [sportId, setSportId] = useState<SportId>("padel");
+  const [zoneId, setZoneId] = useState<ZoneId>("rackets");
   const [date, setDate] = useState(isoToday());
   const [mode, setMode] = useState<LoadMode>("day");
   const [cache, setCache] = useState<DayCache | null>(null);
@@ -114,17 +122,11 @@ export function CourtBrowser() {
     () => Array.from({ length: 7 }, (_, i) => addDaysIso(isoToday(), i)),
     [],
   );
-  const visibleSports = SPORTS.filter((sport) => sport.id !== "padelVidre");
-  const sport = SPORTS.find((s) => s.id === sportId) ?? SPORTS[0];
   const allSports = isAllSports(mode);
-  const shownSports = useMemo(
-    () => (allSports ? SPORTS.map((item) => item.id) : sportsInView(sportId)),
-    [allSports, sportId],
-  );
   const loadKey = [
     mode,
     isWeekMode(mode) ? dates.join(",") : date,
-    allSports ? "all" : sportId,
+    allSports ? "all" : zoneId,
   ].join("|");
   const activeCache = cache?.key === loadKey ? cache : null;
   const preferredDate = useRef(date);
@@ -134,27 +136,19 @@ export function CourtBrowser() {
   const dayIsOpen = (iso: string) => {
     const entry = activeCache?.byDate[iso];
     if (!entry || entry.unavailable) return false;
-    return entry.slots.some((slot) => shownSports.includes(slot.sportId));
+    return entry.courts.length > 0 || entry.slots.length > 0;
   };
-  const courts = useMemo(
-    () =>
-      (day?.courts ?? []).filter((court) => shownSports.includes(court.sportId)),
-    [day, shownSports],
-  );
-  const slots = useMemo(
-    () =>
-      (day?.slots ?? []).filter((slot) => shownSports.includes(slot.sportId)),
-    [day, shownSports],
-  );
+  const courts = day?.courts ?? [];
+  const slots = day?.slots ?? [];
   const needsRelogin = Boolean(day?.needsRelogin);
   const waitingForDay = !day;
   const maxHours =
-    slots.find((slot) => slot.live?.maxHours)?.live?.maxHours ?? sport.maxHours;
+    slots.find((slot) => slot.live?.maxHours)?.live?.maxHours ?? 1.5;
   const maxBlocks = maxHalfHourBlocks(maxHours);
 
   useEffect(() => {
     let stale = false;
-    const scope: AvailabilityScope = isAllSports(mode) ? "all" : "sport";
+    const scope: AvailabilityScope = isAllSports(mode) ? "all" : "zone";
     const week = isWeekMode(mode);
     const target = preferredDate.current;
     // One day per request. A full week of every sport can run for minutes,
@@ -176,7 +170,7 @@ export function CourtBrowser() {
           const data = await fetchAvailabilityBatch({
             dates: [queue[i]],
             scope,
-            sportId: scope === "sport" ? sportId : undefined,
+            zone: scope === "zone" ? zoneId : undefined,
           });
           if (stale) return;
           for (const entry of data.days ?? []) byDate[entry.date] = entry;
@@ -197,17 +191,17 @@ export function CourtBrowser() {
     return () => {
       stale = true;
     };
-  }, [loadKey, dates, mode, sportId]);
+  }, [loadKey, dates, mode, zoneId]);
 
   useEffect(() => {
     if (!isWeekMode(mode) || !ready || dayIsOpen(date)) return;
     const next = dates.find((iso) => dayIsOpen(iso));
     if (next) setDate(next);
-  }, [ready, date, dates, sportId, mode, cache]);
+  }, [ready, date, dates, zoneId, mode, cache]);
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [date, sportId, mode]);
+  }, [date, zoneId, mode]);
 
   const byCourt = useMemo(() => {
     const map = new Map<string, AvailabilitySlot[]>();
@@ -224,10 +218,21 @@ export function CourtBrowser() {
   }, [courts, slots]);
 
   const courtGroups = useMemo(() => {
-    const present = new Set(courts.map((court) => court.sportId));
-    return SPORTS.filter((item) => present.has(item.id)).map((item) => ({
-      id: item.id,
-      courts: courts.filter((court) => court.sportId === item.id),
+    const order = new Map(SPORTS.map((item, index) => [item.id, index]));
+    const keys: string[] = [];
+    for (const court of courts) {
+      const key = groupKey(court);
+      if (!keys.includes(key)) keys.push(key);
+    }
+    keys.sort((a, b) => {
+      const ia = order.get(a as (typeof SPORTS)[number]["id"]) ?? 1000;
+      const ib = order.get(b as (typeof SPORTS)[number]["id"]) ?? 1000;
+      if (ia !== ib) return ia - ib;
+      return a.localeCompare(b, "ca");
+    });
+    return keys.map((key) => ({
+      id: key,
+      courts: courts.filter((court) => groupKey(court) === key),
     }));
   }, [courts]);
 
@@ -288,10 +293,10 @@ export function CourtBrowser() {
         ? [slot, ...existing]
         : [...existing, slot];
 
-      if (next.length > maxBlocks) {
-        toast.message(
-          t("courts.maxToast", { hours: maxHours, blocks: maxBlocks }),
-        );
+      const capHours = slot.live?.maxHours ?? 1.5;
+      const cap = maxHalfHourBlocks(capHours);
+      if (next.length > cap) {
+        toast.message(t("courts.maxToast", { hours: capHours, blocks: cap }));
         return prev;
       }
       return next.map((s) => s.id);
@@ -323,8 +328,8 @@ export function CourtBrowser() {
       const bookedDate = selectedSlots[0]?.date ?? date;
       const refreshed = await fetchAvailabilityBatch({
         dates: [bookedDate],
-        scope: allSports ? "all" : "sport",
-        sportId: allSports ? undefined : sportId,
+        scope: allSports ? "all" : "zone",
+        zone: allSports ? undefined : zoneId,
       });
       const entry =
         refreshed.days?.find((day) => day.date === bookedDate) ??
@@ -356,7 +361,7 @@ export function CourtBrowser() {
               {allSports
                 ? t("courts.metaAll")
                 : t("courts.meta", {
-                    zone: t(zoneKeyForSport(sport.id)),
+                    zone: t(ZONE_KEY[zoneId]),
                     hours: maxHours,
                   })}
             </p>
@@ -364,12 +369,12 @@ export function CourtBrowser() {
           {allSports ? null : (
             <select
               className="h-10 w-full rounded-lg border border-[color:var(--uji-ink)]/15 bg-white/80 px-3 text-sm sm:w-56"
-              value={sportId}
-              onChange={(e) => setSportId(e.target.value as SportId)}
+              value={zoneId}
+              onChange={(e) => setZoneId(e.target.value as ZoneId)}
             >
-              {visibleSports.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {t(sportNameKey(s.id))}
+              {ZONES.map((id) => (
+                <option key={id} value={id}>
+                  {t(ZONE_KEY[id])}
                 </option>
               ))}
             </select>
@@ -514,11 +519,10 @@ export function CourtBrowser() {
           ) : null}
           {courtGroups.map((group) => (
             <div key={group.id} className="space-y-3">
-              {courtGroups.length > 1 ? (
-                <h2 className="font-heading text-xl text-[color:var(--uji-ink)]">
-                  {t(sportNameKey(group.id))}
-                </h2>
-              ) : null}
+              <h2 className="font-heading text-xl text-[color:var(--uji-ink)]">
+                {group.courts[0]?.label ??
+                  t(sportNameKey(group.courts[0]?.sportId ?? "other"))}
+              </h2>
               {group.courts.map((court) => {
             const courtSlots = byCourt.get(court.id) ?? [];
             return (
@@ -638,7 +642,9 @@ export function CourtBrowser() {
           <p className="text-sm text-[color:var(--uji-ink)]/65">
             {t("courts.confirmLive", {
               count: selectedSlots.length,
-              hours: maxHours,
+              hours:
+                selectedSlots.find((slot) => slot.live?.maxHours)?.live
+                  ?.maxHours ?? maxHours,
             })}
           </p>
           <DialogFooter>

@@ -16,7 +16,9 @@ export type SportId =
   | "fronto"
   | "ironfit"
   | "football7"
-  | "volleyball";
+  | "volleyball"
+  | "tableTennis"
+  | "other";
 
 export interface Sport {
   id: SportId;
@@ -32,6 +34,7 @@ export interface Court {
   sportId: SportId;
   indoor: boolean;
   code?: string;
+  label?: string;
 }
 
 export interface LiveSlotMeta {
@@ -112,16 +115,16 @@ export const SPORTS: Sport[] = [
     slotMinutes: 30,
     maxHours: 1.5,
   },
-  { id: "badminton", nameCa: "Bàdminton", zone: "Pavelló", slotMinutes: 30, maxHours: 1.5 },
+  { id: "badminton", nameCa: "Bàdminton", zone: "Zona de raquetes", slotMinutes: 30, maxHours: 1.5 },
   {
     id: "escalada",
     nameCa: "Escalada/Boulder",
-    zone: "Pavelló",
+    zone: "Zona de raquetes",
     slotMinutes: 30,
     maxHours: 1.5,
   },
   { id: "fronto", nameCa: "Frontó", zone: "Zona de raquetes", slotMinutes: 30, maxHours: 1.5 },
-  { id: "ironfit", nameCa: "Ironfit", zone: "Pavelló", slotMinutes: 30, maxHours: 1.5 },
+  { id: "ironfit", nameCa: "Ironfit", zone: "Zona de raquetes", slotMinutes: 30, maxHours: 1.5 },
   {
     id: "football7",
     nameCa: "Futbol 7",
@@ -136,7 +139,13 @@ export const SPORTS: Sport[] = [
     slotMinutes: 30,
     maxHours: 1.5,
   },
+  { id: "tableTennis", nameCa: "Tennis taula", zone: "Tennis taula", slotMinutes: 30, maxHours: 1.5 },
+  { id: "other", nameCa: "Altres", zone: "Zona de raquetes", slotMinutes: 30, maxHours: 1.5 },
 ];
+
+export type ZoneId = "rackets" | "pavilion" | "outdoor" | "table";
+
+export const ZONES: ZoneId[] = ["rackets", "pavilion", "outdoor", "table"];
 
 function ct(key: MessageKey, vars?: Record<string, string | number>) {
   let locale: "ca" | "en" = "ca";
@@ -243,7 +252,7 @@ export async function logout() {
   await apiFetch("/api/auth", { method: "DELETE", credentials: "include" });
 }
 
-export type AvailabilityScope = "sport" | "all";
+export type AvailabilityScope = "zone" | "all";
 
 export interface AvailabilityDay {
   date: string;
@@ -266,21 +275,21 @@ const availabilityInflight = new Map<
     warning?: string;
     needsRelogin?: boolean;
     scope?: AvailabilityScope;
-    sportId?: SportId;
+    zone?: ZoneId;
   }>
 >();
 
 export async function fetchAvailabilityBatch(input: {
   dates: string[];
   scope: AvailabilityScope;
-  sportId?: SportId;
+  zone?: ZoneId;
 }) {
   const params = new URLSearchParams({
     dates: input.dates.join(","),
     scope: input.scope,
   });
-  if (input.scope === "sport" && input.sportId) {
-    params.set("sportId", input.sportId);
+  if (input.scope === "zone" && input.zone) {
+    params.set("zone", input.zone);
   }
   const key = params.toString();
   const existing = availabilityInflight.get(key);
@@ -297,7 +306,7 @@ export async function fetchAvailabilityBatch(input: {
       warning?: string;
       needsRelogin?: boolean;
       scope?: AvailabilityScope;
-      sportId?: SportId;
+      zone?: ZoneId;
     }>(res);
     if (!res.ok && !data.days?.length) {
       throw new Error(data.error || ct("err.availability"));

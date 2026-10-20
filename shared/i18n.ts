@@ -96,10 +96,13 @@ const ca = {
   "sport.ironfit": "Ironfit",
   "sport.football7": "Futbol 7",
   "sport.volleyball": "Vòlei platja",
+  "sport.tableTennis": "Tennis taula",
+  "sport.other": "Altres",
 
   "zone.rackets": "Zona de raquetes",
   "zone.pavilion": "Pavelló",
   "zone.outdoor": "Zona d'aire lliure",
+  "zone.table": "Tennis taula",
 
   "err.userShort": "L'usuari UJI ha de tenir almenys 4 caràcters.",
   "err.passShort": "La contrasenya UJI ha de tenir almenys 8 caràcters.",
@@ -275,10 +278,13 @@ const en: { [K in MessageKey]: string } = {
   "sport.ironfit": "Ironfit",
   "sport.football7": "Football 7",
   "sport.volleyball": "Beach volleyball",
+  "sport.tableTennis": "Table tennis",
+  "sport.other": "Other",
 
   "zone.rackets": "Racket zone",
   "zone.pavilion": "Pavilion",
   "zone.outdoor": "Outdoor area",
+  "zone.table": "Table tennis",
 
   "err.userShort": "UJI username must be at least 4 characters.",
   "err.passShort": "UJI password must be at least 8 characters.",
@@ -386,11 +392,13 @@ const ZONE_BY_SPORT: Record<string, MessageKey> = {
   squash: "zone.rackets",
   pickleball: "zone.rackets",
   fronto: "zone.rackets",
-  badminton: "zone.pavilion",
-  escalada: "zone.pavilion",
-  ironfit: "zone.pavilion",
+  badminton: "zone.rackets",
+  escalada: "zone.rackets",
+  ironfit: "zone.rackets",
   football7: "zone.outdoor",
   volleyball: "zone.outdoor",
+  tableTennis: "zone.table",
+  other: "zone.rackets",
 };
 
 export function sportNameKey(id: string): MessageKey {
