@@ -3,9 +3,14 @@ import { Toaster } from "sonner";
 import { AuthGate } from "@/components/auth-gate";
 import { BookingsPage, CourtsPage, LoginPage } from "@/pages";
 
+const basename =
+  import.meta.env.BASE_URL === "/"
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <div className="flex min-h-dvh flex-col">
         <Routes>
           <Route element={<AuthGate requireAuth={false} />}>
