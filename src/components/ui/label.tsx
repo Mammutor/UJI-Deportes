@@ -1,4 +1,3 @@
-import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +8,7 @@ export function Label({
   return (
     <LabelPrimitive.Root
       className={cn(
-        "text-sm font-medium text-[color:var(--uji-ink)]",
+        "text-sm font-medium text-[color:var(--md-primary)]",
         className,
       )}
       {...props}

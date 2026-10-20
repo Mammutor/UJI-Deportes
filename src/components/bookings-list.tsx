@@ -19,11 +19,11 @@ export function BookingsList() {
     try {
       setBookings(await listBookings());
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bookings.error"));
+      setError(e instanceof Error && e.message ? e.message : "bookings.error");
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -53,16 +53,16 @@ export function BookingsList() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-300 bg-red-50 p-6 text-sm text-red-700">
-        {error}
+      <div className="md-banner md-banner-error p-6">
+        {error === "bookings.error" ? t("bookings.error") : error}
       </div>
     );
   }
 
   if (bookings.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[color:var(--uji-ink)]/20 bg-white/50 p-12 text-center">
-        <p className="font-heading text-xl text-[color:var(--uji-ink)]">
+      <div className="md-surface-1 p-12 text-center">
+        <p className="text-xl font-medium text-[color:var(--uji-ink)]">
           {t("bookings.emptyTitle")}
         </p>
         <p className="mt-2 text-sm text-[color:var(--uji-ink)]/60">
@@ -77,11 +77,11 @@ export function BookingsList() {
       {bookings.map((b) => (
         <li
           key={b.id}
-          className="flex flex-col gap-3 rounded-2xl border border-[color:var(--uji-ink)]/8 bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="md-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-heading text-lg text-[color:var(--uji-ink)]">
+              <h2 className="text-base font-medium text-[color:var(--uji-ink)]">
                 {b.courtName}
               </h2>
               <Badge>{b.sportName}</Badge>
@@ -94,6 +94,7 @@ export function BookingsList() {
           <Button
             variant="outline"
             size="sm"
+            className="border-[color:var(--md-error)] text-[color:var(--md-error)] hover:bg-[color:var(--md-error-container)]"
             onClick={() => onCancel(b.id)}
             disabled={pendingId === b.id}
           >

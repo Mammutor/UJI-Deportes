@@ -9,7 +9,7 @@ import {
 const als = new AsyncLocalStorage<Locale>();
 
 export function currentLocale(): Locale {
-  return als.getStore() ?? "ca";
+  return als.getStore() ?? "va";
 }
 
 export function tr(
@@ -23,6 +23,6 @@ export async function withRequestLocale(
   header: string | undefined,
   fn: () => Promise<void>,
 ) {
-  const locale = parseLocale(header) ?? "ca";
+  const locale = parseLocale(header) ?? "va";
   await als.run(locale, fn);
 }

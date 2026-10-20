@@ -25,7 +25,12 @@ import {
   type ZoneId,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { sportNameKey, type Locale, type MessageKey } from "../../shared/i18n";
+import {
+  dateLocale,
+  sportNameKey,
+  type Locale,
+  type MessageKey,
+} from "../../shared/i18n";
 
 function isoToday() {
   const d = new Date();
@@ -41,7 +46,7 @@ function addDaysIso(base: string, days: number) {
 
 function formatDayLabel(iso: string, locale: Locale) {
   return new Date(`${iso}T12:00:00`).toLocaleDateString(
-    locale === "en" ? "en-GB" : "ca-ES",
+    dateLocale(locale),
     {
       weekday: "short",
       day: "numeric",
@@ -228,13 +233,13 @@ export function CourtBrowser() {
       const ia = order.get(a as (typeof SPORTS)[number]["id"]) ?? 1000;
       const ib = order.get(b as (typeof SPORTS)[number]["id"]) ?? 1000;
       if (ia !== ib) return ia - ib;
-      return a.localeCompare(b, "ca");
+      return a.localeCompare(b, dateLocale(locale));
     });
     return keys.map((key) => ({
       id: key,
       courts: courts.filter((court) => groupKey(court) === key),
     }));
-  }, [courts]);
+  }, [courts, locale]);
 
   const selectedSlots = useMemo(() => {
     const set = new Set(selectedIds);
@@ -353,7 +358,7 @@ export function CourtBrowser() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-heading text-3xl tracking-tight text-[color:var(--uji-ink)] sm:text-4xl">
+            <h1 className="text-[2rem] font-normal leading-10 text-[color:var(--uji-ink)]">
               {t("courts.title")}
             </h1>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-[color:var(--uji-ink)]/60">
@@ -368,7 +373,7 @@ export function CourtBrowser() {
           </div>
           {allSports ? null : (
             <select
-              className="h-10 w-full rounded-lg border border-[color:var(--uji-ink)]/15 bg-white/80 px-3 text-sm sm:w-56"
+              className="md-field w-full text-sm sm:w-64"
               value={zoneId}
               onChange={(e) => setZoneId(e.target.value as ZoneId)}
             >
@@ -381,18 +386,14 @@ export function CourtBrowser() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           {LOAD_MODES.map((item) => (
             <button
               key={item.id}
               type="button"
+              aria-pressed={mode === item.id}
               onClick={() => setMode(item.id)}
-              className={[
-                "rounded-lg border px-3 py-2 text-sm transition",
-                mode === item.id
-                  ? "border-[color:var(--uji-orange)] bg-white text-[color:var(--uji-ink)]"
-                  : "border-transparent bg-white/50 text-[color:var(--uji-ink)]/70 hover:bg-white",
-              ].join(" ")}
+              className="md-chip"
             >
               {t(item.label)}
             </button>
@@ -400,7 +401,7 @@ export function CourtBrowser() {
         </div>
         <p className="text-sm text-[color:var(--uji-ink)]/70">{t("courts.slowNotice")}</p>
 
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           {dates.map((d) => {
             const known = Boolean(activeCache?.byDate[d]);
             const closed = known && !dayIsOpen(d);
@@ -411,14 +412,8 @@ export function CourtBrowser() {
                 disabled={closed}
                 title={closed ? t("courts.unavailable") : undefined}
                 onClick={() => setDate(d)}
-                className={[
-                  "rounded-lg border px-3 py-2 text-sm transition",
-                  closed
-                    ? "cursor-not-allowed border-transparent bg-[color:var(--uji-ink)]/10 text-[color:var(--uji-ink)]/35"
-                    : d === date
-                      ? "border-[color:var(--uji-orange)] bg-white text-[color:var(--uji-ink)]"
-                      : "border-transparent bg-white/50 text-[color:var(--uji-ink)]/70 hover:bg-white",
-                ].join(" ")}
+                aria-pressed={!closed && d === date}
+                className="md-chip"
               >
                 {formatDayLabel(d, locale)}
               </button>
@@ -432,11 +427,11 @@ export function CourtBrowser() {
             {t("courts.free")}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-3 rounded-sm bg-red-500/80" />
+            <span className="size-3 rounded-sm bg-[color:var(--uji-red)]" />
             {t("courts.booked")}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-3 rounded-sm bg-[color:var(--uji-ink)]/20" />
+            <span className="size-3 rounded-sm border border-[color:var(--md-outline)] bg-[color:var(--md-surface-highest)]" />
             {t("courts.unavailable")}
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -450,7 +445,7 @@ export function CourtBrowser() {
       </div>
 
       {needsRelogin ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+        <div className="md-banner md-banner-warning flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <div>
@@ -472,9 +467,7 @@ export function CourtBrowser() {
 
       {waitingForDay ? (
         error && !loading ? (
-          <div className="rounded-xl border border-red-300 bg-red-50 p-6 text-sm text-red-700">
-            {error}
-          </div>
+          <div className="md-banner md-banner-error p-6">{error}</div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 py-20 text-center text-[color:var(--uji-ink)]/55">
             <div className="flex items-center gap-2">
@@ -501,7 +494,7 @@ export function CourtBrowser() {
               {t("courts.slowNotice")}
             </div>
           ) : null}
-          <div className="rounded-xl border border-dashed border-[color:var(--uji-ink)]/15 bg-[color:var(--uji-ink)]/5 p-10 text-center text-[color:var(--uji-ink)]/45">
+          <div className="md-surface-1 p-10 text-center text-[color:var(--uji-ink)]/55">
             {error ?? t("courts.unavailable")}
           </div>
         </div>
@@ -519,7 +512,7 @@ export function CourtBrowser() {
           ) : null}
           {courtGroups.map((group) => (
             <div key={group.id} className="space-y-3">
-              <h2 className="font-heading text-xl text-[color:var(--uji-ink)]">
+              <h2 className="text-xl font-medium text-[color:var(--uji-ink)]">
                 {group.courts[0]?.label ??
                   t(sportNameKey(group.courts[0]?.sportId ?? "other"))}
               </h2>
@@ -528,11 +521,11 @@ export function CourtBrowser() {
             return (
               <section
                 key={court.id}
-                className="rounded-2xl border border-[color:var(--uji-ink)]/8 bg-white/70 p-4 shadow-sm backdrop-blur-sm"
+                className="md-card p-4"
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
-                    <h2 className="font-heading text-lg text-[color:var(--uji-ink)]">
+                    <h2 className="text-base font-medium text-[color:var(--uji-ink)]">
                       {court.name}
                     </h2>
                     {court.code ? (
@@ -569,14 +562,14 @@ export function CourtBrowser() {
                                 : slot.status
                           }
                           className={[
-                            "min-w-[4.5rem] rounded-md px-2.5 py-2 text-left text-sm transition",
+                            "md-slot",
                             selected
-                              ? "bg-[color:var(--uji-orange)] text-white ring-2 ring-[color:var(--uji-orange)]/40"
+                              ? "md-slot-selected"
                               : available
-                                ? "bg-[color:var(--uji-court)] text-white hover:brightness-110 active:scale-[0.98]"
+                                ? "md-slot-free"
                                 : booked
-                                  ? "cursor-not-allowed bg-red-500/75 text-white/95"
-                                  : "cursor-not-allowed bg-[color:var(--uji-ink)]/8 text-[color:var(--uji-ink)]/35",
+                                  ? "md-slot-booked"
+                                  : "md-slot-closed",
                           ].join(" ")}
                         >
                           <div className="font-medium tabular-nums leading-tight">
@@ -599,7 +592,7 @@ export function CourtBrowser() {
       )}
 
       {selectionSummary ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--uji-ink)]/10 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md">
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-white px-4 py-3 shadow-[var(--md-elevation-8)]">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-[color:var(--uji-ink)]">
               <span className="font-medium">{selectionSummary.courtName}</span>

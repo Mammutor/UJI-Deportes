@@ -17,33 +17,32 @@ export function LoginPage() {
   const { t } = useI18n();
 
   return (
-    <main className="relative flex flex-1 flex-col">
-      <div className="absolute right-4 top-4 z-10">
+    <main className="relative flex flex-1 flex-col bg-[color:var(--md-surface)]">
+      <div className="brand-stripe" />
+      <div className="absolute right-4 top-6 z-10">
         <LanguageToggle tone="light" />
       </div>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 top-10 h-64 w-64 rounded-full bg-[color:var(--uji-court)]/15 blur-3xl" />
-        <div className="absolute -right-16 bottom-10 h-72 w-72 rounded-full bg-[color:var(--uji-orange)]/20 blur-3xl" />
-      </div>
-      <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
-        <div className="animate-rise mb-8 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-[color:var(--uji-orange)] font-heading text-2xl font-bold text-[color:var(--uji-ink)] shadow-md">
-            U
-          </div>
-          <h1 className="font-heading text-4xl tracking-tight text-[color:var(--uji-ink)] sm:text-5xl">
-            UJI Deporte
+      <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 pt-16 pb-12">
+        <div className="animate-rise mb-6 text-center">
+          <img
+            src={`${import.meta.env.BASE_URL}uji-logo.jpg`}
+            alt="Universitat Jaume I"
+            className="mx-auto mb-5 h-auto w-full max-w-xs"
+          />
+          <h1 className="text-3xl font-normal leading-tight text-[color:var(--uji-ink)]">
+            {t("app.title")}
           </h1>
-          <p className="mt-2 text-base text-[color:var(--uji-ink)]/65">
+          <p className="mt-1 text-base text-[color:var(--uji-ink)]/70">
             {t("app.subtitle")}
           </p>
         </div>
-        <div className="animate-rise-delay rounded-2xl border border-[color:var(--uji-ink)]/10 bg-white/85 p-6 shadow-sm backdrop-blur">
+        <div className="animate-rise-delay md-surface-2 p-6">
           <LoginForm />
         </div>
-        <p className="mt-6 text-center text-xs text-[color:var(--uji-ink)]/55">
+        <p className="mt-6 text-center text-xs text-[color:var(--uji-ink)]/60">
           {t("app.officialInfo")}{" "}
           <a
-            className="underline underline-offset-2"
+            className="font-medium text-[color:var(--md-primary)] underline-offset-2 hover:underline"
             href={UJI_ENDPOINTS.infoPage}
             target="_blank"
             rel="noreferrer"
@@ -77,7 +76,7 @@ export function BookingsPage() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-heading text-3xl tracking-tight text-[color:var(--uji-ink)] sm:text-4xl">
+            <h1 className="text-[2rem] font-normal leading-10 text-[color:var(--uji-ink)]">
               {t("app.myBookings")}
             </h1>
             <p className="mt-1 text-sm text-[color:var(--uji-ink)]/60">

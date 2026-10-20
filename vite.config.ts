@@ -42,15 +42,15 @@ export default defineConfig(() => {
         registerType: "autoUpdate",
         includeAssets: ["favicon.svg", "icons/*.png"],
         manifest: {
-          name: "UJI Deporte",
-          short_name: "UJI Deporte",
+          name: "UJI Sports Bookingsystem",
+          short_name: "UJI Sports",
           description:
             "Reserva pistes de pàdel i altres esports del Servei d'Esports UJI.",
-          theme_color: "#0b3d2e",
-          background_color: "#eef6f1",
+          theme_color: "#003366",
+          background_color: "#f4f6f9",
           display: "standalone",
           orientation: "portrait-primary",
-          lang: "ca",
+          lang: "ca-ES-valencia",
           start_url: base,
           icons: [
             {

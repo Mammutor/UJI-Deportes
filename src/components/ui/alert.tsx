@@ -7,7 +7,7 @@ export function Alert({
   return (
     <div
       role="alert"
-      className={cn("rounded-xl border px-3 py-3 text-sm", className)}
+      className={cn("rounded-xl px-3 py-3 text-sm", className)}
       {...props}
     />
   );

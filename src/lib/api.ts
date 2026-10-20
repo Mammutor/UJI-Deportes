@@ -1,4 +1,4 @@
-import { parseLocale, t, type MessageKey } from "../../shared/i18n";
+import { parseLocale, t, type Locale, type MessageKey } from "../../shared/i18n";
 
 export const UJI_ENDPOINTS = {
   bookingEntry: "https://e-ujier.uji.es/pls/www/!uji_sports.usuari",
@@ -148,9 +148,9 @@ export type ZoneId = "rackets" | "pavilion" | "outdoor" | "table";
 export const ZONES: ZoneId[] = ["rackets", "pavilion", "outdoor", "table"];
 
 function ct(key: MessageKey, vars?: Record<string, string | number>) {
-  let locale: "ca" | "en" = "ca";
+  let locale: Locale = "va";
   try {
-    locale = parseLocale(localStorage.getItem("uji-locale")) ?? "ca";
+    locale = parseLocale(localStorage.getItem("uji-locale")) ?? "va";
   } catch {
     /* ignore */
   }

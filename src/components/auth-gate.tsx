@@ -8,16 +8,15 @@ import { Loader2 } from "lucide-react";
 import { fetchSession, type SessionInfo } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
+const SESSION_API_DOWN = "login.apiDown";
+
 export function useSessionLoader() {
-  const { t } = useI18n();
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetchSession()
       .then((s) => {
         if (!cancelled) setSession(s);
@@ -25,9 +24,9 @@ export function useSessionLoader() {
       .catch((err) => {
         if (!cancelled) {
           setError(
-            err instanceof Error
+            err instanceof Error && err.message
               ? err.message
-              : t("login.apiDown"),
+              : SESSION_API_DOWN,
           );
           setSession({
             authenticated: false,
@@ -48,7 +47,7 @@ export function useSessionLoader() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, []);
 
   return { session, loading, error, setSession };
 }
@@ -74,8 +73,8 @@ export function AuthGate({
   if (error && !session?.authenticated) {
     return (
       <div className="mx-auto flex max-w-md flex-1 flex-col justify-center gap-3 px-4 py-16">
-        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
+        <p className="md-banner md-banner-error">
+          {error === SESSION_API_DOWN ? t("login.apiDown") : error}
         </p>
         <p className="text-sm text-[color:var(--uji-ink)]/65">
           {t("login.apiHint")}

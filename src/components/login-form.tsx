@@ -32,7 +32,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <Alert className="border-sky-500/40 bg-sky-50 text-sky-950">
+      <Alert className="md-banner">
         <AlertTitle className="flex items-center gap-2">
           <LockKeyhole className="size-4" /> {t("login.liveTitle")}
         </AlertTitle>
@@ -78,9 +78,7 @@ export function LoginForm() {
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <p className="md-banner md-banner-error">{error}</p>
       ) : null}
 
       <p className="text-center text-sm text-[color:var(--uji-ink)]/70">

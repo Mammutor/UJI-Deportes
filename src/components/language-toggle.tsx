@@ -1,5 +1,5 @@
 import { Languages } from "lucide-react";
-import { LOCALES, type Locale } from "../../shared/i18n";
+import { LOCALES } from "../../shared/i18n";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -15,36 +15,38 @@ export function LanguageToggle({ tone = "dark" }: Props) {
       role="group"
       aria-label={t("lang.label")}
       className={[
-        "inline-flex items-center gap-0.5 rounded-lg border p-0.5 text-xs font-medium",
-        dark
-          ? "border-white/20 bg-white/10"
-          : "border-[color:var(--uji-ink)]/15 bg-white/80",
+        "inline-flex h-8 items-center gap-0.5 rounded-full p-0.5 text-xs font-medium",
+        dark ? "bg-white/15" : "bg-[color:var(--md-surface-highest)]",
       ].join(" ")}
     >
       <Languages
         className={[
-          "ml-1 size-3.5",
-          dark ? "text-white/70" : "text-[color:var(--uji-ink)]/50",
+          "ml-1.5 hidden size-3.5 sm:block",
+          dark ? "text-white/80" : "text-[color:var(--md-primary)]",
         ].join(" ")}
         aria-hidden
       />
       {LOCALES.map((code) => {
         const active = locale === code;
+        const name =
+          code === "es" ? t("lang.es") : code === "en" ? t("lang.en") : t("lang.va");
         return (
           <button
             key={code}
             type="button"
             aria-pressed={active}
-            onClick={() => setLocale(code as Locale)}
+            aria-label={name}
+            title={name}
+            onClick={() => setLocale(code)}
             className={[
-              "rounded-md px-2 py-1 uppercase tracking-wide transition",
+              "h-7 rounded-full px-2 uppercase tracking-wide transition-[background-color,box-shadow,color] duration-200",
               active
                 ? dark
-                  ? "bg-white text-[color:var(--uji-ink)]"
-                  : "bg-[color:var(--uji-ink)] text-white"
+                  ? "bg-white text-[color:var(--md-primary)] shadow-[var(--md-elevation-1)]"
+                  : "bg-[color:var(--md-primary)] text-white shadow-[var(--md-elevation-1)]"
                 : dark
-                  ? "text-white/70 hover:text-white"
-                  : "text-[color:var(--uji-ink)]/55 hover:text-[color:var(--uji-ink)]",
+                  ? "text-white/80 hover:text-white"
+                  : "text-[color:var(--uji-ink)]/70 hover:text-[color:var(--uji-ink)]",
             ].join(" ")}
           >
             {code}
