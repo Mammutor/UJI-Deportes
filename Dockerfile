@@ -25,6 +25,10 @@ COPY --from=builder /app/dist ./dist
 COPY server ./server
 COPY shared ./shared
 
+# Login persists sessions under /app/.data. The process runs as uji and
+# cannot create that directory inside the root-owned /app.
+RUN mkdir -p /app/.data && chown uji:nodejs /app/.data
+
 USER uji
 EXPOSE 4321
 CMD ["pnpm", "exec", "tsx", "server/index.ts"]

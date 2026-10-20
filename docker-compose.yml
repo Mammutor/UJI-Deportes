@@ -7,4 +7,9 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
       NODE_ENV: production
       PORT: 4321
+    volumes:
+      - uji-data:/app/.data
     restart: unless-stopped
+
+volumes:
+  uji-data:
