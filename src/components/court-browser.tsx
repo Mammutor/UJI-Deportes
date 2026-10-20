@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Loader2, MapPin, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   maxHalfHourBlocks,
   SPORTS,
   type AvailabilityDay,
+  type AvailabilityScope,
   type AvailabilitySlot,
   type SportId,
 } from "@/lib/api";
@@ -65,6 +66,30 @@ function sportsInView(sportId: SportId): SportId[] {
   return [sportId];
 }
 
+type LoadMode = "day" | "week" | "dayAll" | "weekAll";
+
+const LOAD_MODES: {
+  id: LoadMode;
+  label:
+    | "courts.loadDay"
+    | "courts.loadWeek"
+    | "courts.loadDayAll"
+    | "courts.loadWeekAll";
+}[] = [
+  { id: "day", label: "courts.loadDay" },
+  { id: "week", label: "courts.loadWeek" },
+  { id: "dayAll", label: "courts.loadDayAll" },
+  { id: "weekAll", label: "courts.loadWeekAll" },
+];
+
+function isWeekMode(mode: LoadMode) {
+  return mode === "week" || mode === "weekAll";
+}
+
+function isAllSports(mode: LoadMode) {
+  return mode === "dayAll" || mode === "weekAll";
+}
+
 type DayCache = {
   key: string;
   byDate: Record<string, AvailabilityDay>;
@@ -74,8 +99,12 @@ export function CourtBrowser() {
   const { t, locale } = useI18n();
   const [sportId, setSportId] = useState<SportId>("padel");
   const [date, setDate] = useState(isoToday());
+  const [mode, setMode] = useState<LoadMode>("day");
   const [cache, setCache] = useState<DayCache | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -87,10 +116,19 @@ export function CourtBrowser() {
   );
   const visibleSports = SPORTS.filter((sport) => sport.id !== "padelVidre");
   const sport = SPORTS.find((s) => s.id === sportId) ?? SPORTS[0];
-  const shownSports = useMemo(() => sportsInView(sportId), [sportId]);
-  const datesKey = dates.join(",");
-  const cacheKey = `${datesKey}|${sportId}`;
-  const activeCache = cache?.key === cacheKey ? cache : null;
+  const allSports = isAllSports(mode);
+  const shownSports = useMemo(
+    () => (allSports ? SPORTS.map((item) => item.id) : sportsInView(sportId)),
+    [allSports, sportId],
+  );
+  const loadKey = [
+    mode,
+    isWeekMode(mode) ? dates.join(",") : date,
+    allSports ? "all" : sportId,
+  ].join("|");
+  const activeCache = cache?.key === loadKey ? cache : null;
+  const preferredDate = useRef(date);
+  preferredDate.current = date;
   const ready = Boolean(activeCache);
   const day = activeCache?.byDate[date];
   const dayIsOpen = (iso: string) => {
@@ -108,51 +146,68 @@ export function CourtBrowser() {
       (day?.slots ?? []).filter((slot) => shownSports.includes(slot.sportId)),
     [day, shownSports],
   );
-  const needsRelogin = Boolean(
-    activeCache &&
-      dates.every((iso) => activeCache.byDate[iso]?.needsRelogin),
-  );
+  const needsRelogin = Boolean(day?.needsRelogin);
+  const waitingForDay = !day;
   const maxHours =
     slots.find((slot) => slot.live?.maxHours)?.live?.maxHours ?? sport.maxHours;
   const maxBlocks = maxHalfHourBlocks(maxHours);
 
   useEffect(() => {
     let stale = false;
+    const scope: AvailabilityScope = isAllSports(mode) ? "all" : "sport";
+    const week = isWeekMode(mode);
+    const target = preferredDate.current;
+    // One day per request. A full week of every sport can run for minutes,
+    // and Cloudflare closes a single response at about 100 seconds.
+    const queue = week ? [target, ...dates.filter((iso) => iso !== target)] : [target];
+    const key = loadKey;
     setLoading(true);
     setError(null);
+    setProgress({ done: 0, total: queue.length });
+    setCache({ key, byDate: {} });
+
     void (async () => {
-      try {
-        const data = await fetchAvailabilityBatch({
-          dates,
-          scope: "sport",
-          sportId,
-        });
+      const byDate: Record<string, AvailabilityDay> = {};
+      let message: string | null = null;
+      for (let i = 0; i < queue.length; i++) {
         if (stale) return;
-        const byDate: Record<string, AvailabilityDay> = {};
-        for (const entry of data.days ?? []) byDate[entry.date] = entry;
-        setCache({ key: cacheKey, byDate });
-      } catch (e) {
-        if (stale) return;
-        setError(e instanceof Error ? e.message : "Error");
-        setCache(null);
-      } finally {
-        if (!stale) setLoading(false);
+        setProgress({ done: i, total: queue.length });
+        try {
+          const data = await fetchAvailabilityBatch({
+            dates: [queue[i]],
+            scope,
+            sportId: scope === "sport" ? sportId : undefined,
+          });
+          if (stale) return;
+          for (const entry of data.days ?? []) byDate[entry.date] = entry;
+          setCache({ key, byDate: { ...byDate } });
+          if (data.days?.some((entry) => entry.needsRelogin)) break;
+        } catch (e) {
+          if (stale) return;
+          message = e instanceof Error ? e.message : "Error";
+          break;
+        }
       }
+      if (stale) return;
+      setError(message);
+      setProgress(null);
+      setLoading(false);
     })();
+
     return () => {
       stale = true;
     };
-  }, [cacheKey, dates, sportId]);
+  }, [loadKey, dates, mode, sportId]);
 
   useEffect(() => {
-    if (!ready || dayIsOpen(date)) return;
+    if (!isWeekMode(mode) || !ready || dayIsOpen(date)) return;
     const next = dates.find((iso) => dayIsOpen(iso));
     if (next) setDate(next);
-  }, [ready, date, dates, sportId]);
+  }, [ready, date, dates, sportId, mode, cache]);
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [date, sportId]);
+  }, [date, sportId, mode]);
 
   const byCourt = useMemo(() => {
     const map = new Map<string, AvailabilitySlot[]>();
@@ -167,6 +222,14 @@ export function CourtBrowser() {
     }
     return map;
   }, [courts, slots]);
+
+  const courtGroups = useMemo(() => {
+    const present = new Set(courts.map((court) => court.sportId));
+    return SPORTS.filter((item) => present.has(item.id)).map((item) => ({
+      id: item.id,
+      courts: courts.filter((court) => court.sportId === item.id),
+    }));
+  }, [courts]);
 
   const selectedSlots = useMemo(() => {
     const set = new Set(selectedIds);
@@ -260,8 +323,8 @@ export function CourtBrowser() {
       const bookedDate = selectedSlots[0]?.date ?? date;
       const refreshed = await fetchAvailabilityBatch({
         dates: [bookedDate],
-        scope: "sport",
-        sportId,
+        scope: allSports ? "all" : "sport",
+        sportId: allSports ? undefined : sportId,
       });
       const entry =
         refreshed.days?.find((day) => day.date === bookedDate) ??
@@ -290,28 +353,52 @@ export function CourtBrowser() {
             </h1>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-[color:var(--uji-ink)]/60">
               <MapPin className="size-3.5" />
-              {t("courts.meta", {
-                zone: t(zoneKeyForSport(sport.id)),
-                hours: maxHours,
-              })}
+              {allSports
+                ? t("courts.metaAll")
+                : t("courts.meta", {
+                    zone: t(zoneKeyForSport(sport.id)),
+                    hours: maxHours,
+                  })}
             </p>
           </div>
-          <select
-            className="h-10 w-full rounded-lg border border-[color:var(--uji-ink)]/15 bg-white/80 px-3 text-sm sm:w-56"
-            value={sportId}
-            onChange={(e) => setSportId(e.target.value as SportId)}
-          >
-            {visibleSports.map((s) => (
-              <option key={s.id} value={s.id}>
-                {t(sportNameKey(s.id))}
-              </option>
-            ))}
-          </select>
+          {allSports ? null : (
+            <select
+              className="h-10 w-full rounded-lg border border-[color:var(--uji-ink)]/15 bg-white/80 px-3 text-sm sm:w-56"
+              value={sportId}
+              onChange={(e) => setSportId(e.target.value as SportId)}
+            >
+              {visibleSports.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {t(sportNameKey(s.id))}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-1">
+          {LOAD_MODES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setMode(item.id)}
+              className={[
+                "rounded-lg border px-3 py-2 text-sm transition",
+                mode === item.id
+                  ? "border-[color:var(--uji-orange)] bg-white text-[color:var(--uji-ink)]"
+                  : "border-transparent bg-white/50 text-[color:var(--uji-ink)]/70 hover:bg-white",
+              ].join(" ")}
+            >
+              {t(item.label)}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-[color:var(--uji-ink)]/70">{t("courts.slowNotice")}</p>
+
+        <div className="flex flex-wrap gap-1">
           {dates.map((d) => {
-            const closed = ready && !dayIsOpen(d);
+            const known = Boolean(activeCache?.byDate[d]);
+            const closed = known && !dayIsOpen(d);
             return (
               <button
                 key={d}
@@ -378,22 +465,61 @@ export function CourtBrowser() {
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="flex items-center justify-center gap-2 py-20 text-[color:var(--uji-ink)]/55">
-          <Loader2 className="size-5 animate-spin" />
-          {t("courts.loadingDays", { count: dates.length })}
-        </div>
-      ) : error && courts.length === 0 ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-6 text-sm text-red-700">
-          {error}
-        </div>
+      {waitingForDay ? (
+        error && !loading ? (
+          <div className="rounded-xl border border-red-300 bg-red-50 p-6 text-sm text-red-700">
+            {error}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 py-20 text-center text-[color:var(--uji-ink)]/55">
+            <div className="flex items-center gap-2">
+              <Loader2 className="size-5 animate-spin" />
+              {progress
+                ? t("courts.loadingProgress", {
+                    current: progress.done + 1,
+                    total: progress.total,
+                  })
+                : t("courts.loading")}
+            </div>
+            <p>{t("courts.slowNotice")}</p>
+          </div>
+        )
       ) : courts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[color:var(--uji-ink)]/15 bg-[color:var(--uji-ink)]/5 p-10 text-center text-[color:var(--uji-ink)]/45">
-          {t("courts.unavailable")}
+        <div className="space-y-4">
+          {progress ? (
+            <div className="flex items-center gap-2 text-sm text-[color:var(--uji-ink)]/60">
+              <Loader2 className="size-4 animate-spin" />
+              {t("courts.loadingProgress", {
+                current: progress.done + 1,
+                total: progress.total,
+              })}{" "}
+              {t("courts.slowNotice")}
+            </div>
+          ) : null}
+          <div className="rounded-xl border border-dashed border-[color:var(--uji-ink)]/15 bg-[color:var(--uji-ink)]/5 p-10 text-center text-[color:var(--uji-ink)]/45">
+            {error ?? t("courts.unavailable")}
+          </div>
         </div>
       ) : (
         <div className="space-y-5 pb-24">
-          {courts.map((court) => {
+          {progress ? (
+            <div className="flex items-center gap-2 text-sm text-[color:var(--uji-ink)]/60">
+              <Loader2 className="size-4 animate-spin" />
+              {t("courts.loadingProgress", {
+                current: progress.done + 1,
+                total: progress.total,
+              })}{" "}
+              {t("courts.slowNotice")}
+            </div>
+          ) : null}
+          {courtGroups.map((group) => (
+            <div key={group.id} className="space-y-3">
+              {courtGroups.length > 1 ? (
+                <h2 className="font-heading text-xl text-[color:var(--uji-ink)]">
+                  {t(sportNameKey(group.id))}
+                </h2>
+              ) : null}
+              {group.courts.map((court) => {
             const courtSlots = byCourt.get(court.id) ?? [];
             return (
               <section
@@ -462,7 +588,9 @@ export function CourtBrowser() {
                 )}
               </section>
             );
-          })}
+              })}
+            </div>
+          ))}
         </div>
       )}
 

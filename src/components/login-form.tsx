@@ -83,6 +83,10 @@ export function LoginForm() {
         </p>
       ) : null}
 
+      <p className="text-center text-sm text-[color:var(--uji-ink)]/70">
+        {t("login.slowNotice")}
+      </p>
+
       <Button type="submit" className="w-full" size="lg" disabled={pending}>
         {pending ? <Loader2 className="animate-spin" /> : null}
         {pending ? t("login.connecting") : t("login.submit")}
