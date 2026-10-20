@@ -73,12 +73,10 @@ export default defineConfig(() => {
         },
         workbox: {
           navigateFallback: `${base}index.html`,
-          runtimeCaching: [
-            {
-              urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-              handler: "NetworkOnly",
-            },
-          ],
+          // Do not intercept /api. A GET-only route here claims the session
+          // check that runs immediately after sign-in, and that fetch can
+          // leave the browser before the new cookie is visible.
+          navigateFallbackDenylist: [/^\/api\//],
         },
       }),
     ],

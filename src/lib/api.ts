@@ -164,6 +164,7 @@ function apiFetch(input: string, init: RequestInit = {}) {
     ...init,
     headers,
     credentials: init.credentials ?? "include",
+    cache: init.cache ?? "no-store",
   });
 }
 
@@ -202,7 +203,13 @@ export async function login(username: string, password: string, otp?: string) {
     throw new Error(data.error || ct("err.loginHttp", { status: res.status }));
   }
 
-  const session = await fetchSession();
+  // The cookie is HttpOnly, so the only proof it stuck is a follow-up read.
+  // A service worker or the browser can miss it on the first attempt.
+  let session = await fetchSession();
+  for (let attempt = 0; !session.authenticated && attempt < 4; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    session = await fetchSession();
+  }
   if (!session.authenticated) {
     throw new Error(ct("err.cookieMissing"));
   }

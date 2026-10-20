@@ -53,6 +53,10 @@ const app = new Hono();
 app.use("*", async (c, next) => {
   await withRequestLocale(c.req.header("x-uji-locale"), () => next());
 });
+app.use("/api/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
 const isProd = process.env.NODE_ENV === "production";
 // Dev: Vite is on 4321 and proxies /api → API_PORT (4322).
 // Prod/Docker: single process uses PORT (often 4321).

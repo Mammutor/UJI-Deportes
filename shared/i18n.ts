@@ -168,7 +168,7 @@ const ca = {
     "L'API no ha tornat JSON (HTTP {{status}}). És possible que el proxy Vite no arribe a :4322.",
   "err.loginHttp": "El login ha fallat (HTTP {{status}})",
   "err.cookieMissing":
-    "El servidor ha acceptat el login però la cookie de sessió no s'ha desat. Revisa que Vite proxy /api → :4322.",
+    "El servidor ha acceptat el login però la cookie de sessió no s'ha desat. Recarrega la pàgina i torna-ho a provar.",
   "err.availability": "Error de disponibilitat",
   "err.bookingsList": "Error en carregar les reserves",
 } as const;
@@ -337,7 +337,7 @@ const en: { [K in MessageKey]: string } = {
     "The API did not return JSON (HTTP {{status}}). Vite may not be proxying to :4322.",
   "err.loginHttp": "Sign-in failed (HTTP {{status}})",
   "err.cookieMissing":
-    "The server accepted sign-in but the session cookie was not saved. Check that Vite proxies /api to :4322.",
+    "The server accepted sign-in but the session cookie was not saved. Reload the page and try again.",
   "err.availability": "Availability error",
   "err.bookingsList": "Could not load bookings",
 };
