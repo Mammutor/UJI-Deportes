@@ -169,7 +169,14 @@ function extractDisplayName(html: string, username: string) {
  * e-UJIer cookies needed for sports booking XHRs.
  */
 function isSecondFactorPage(html: string) {
-  return /twofactorauth|Doble factor|pick_method|mètodes disponibles/i.test(html);
+  return /2fa_form_2fa|2fa_digit_2fa|showTrustDialog\s*\(|mètodes disponibles|id=["']twofactorauth/i.test(
+    html,
+  );
+}
+
+/** The code form is still on screen, so UJI did not accept this attempt. */
+function stillOnCodeForm(html: string) {
+  return /2fa_form_2fa|2fa_digit_2fa/i.test(html);
 }
 
 /** Empty XHR or the portal's expired-session banner — not a court grid. */
@@ -189,13 +196,17 @@ function decodeFormValue(value: string) {
 
 function findTotpEntry(html: string) {
   const decoded = html.replace(/&amp;/g, "&");
-  return (
+  const href =
     decoded.match(
       /showTrustDialog\(\s*this\s*,\s*['"]([^'"]*methodName=totp[^'"]*)['"]/i,
     )?.[1] ||
     decoded.match(/['"]([^'"]*TwoFactorMethods\/pick_method\.php[^'"]*methodName=totp[^'"]*)['"]/i)?.[1] ||
-    null
-  );
+    null;
+  if (!href) return null;
+  // showTrustDialog() navigates to this URL plus trustThisComputer.
+  // 0 matches the unchecked "trust this computer" path.
+  if (/[?&]trustThisComputer=/.test(href)) return href;
+  return `${href}${href.includes("?") ? "&" : "?"}trustThisComputer=0`;
 }
 
 function inputAttrs(tag: string) {
@@ -215,7 +226,11 @@ async function submitTotp(
   const href = findTotpEntry(html);
   if (!href) throw new Error(tr("err.needsSecondFactor"));
   const totpPage = await follow(jar, abs(pageUrl, href));
-  const formHtml = totpPage.body;
+  const formHtml =
+    totpPage.body.match(
+      /<form\b[^>]*\b2fa_form_2fa\b[^>]*>[\s\S]*?<\/form>/i,
+    )?.[0] ?? "";
+  if (!formHtml) throw new Error(tr("err.needsSecondFactor"));
   const formTag = formHtml.match(/<form\b[^>]*>/i)?.[0] ?? "";
   const form = inputAttrs(formTag);
   const action = form.action || totpPage.url;
@@ -244,7 +259,10 @@ async function submitTotp(
     },
     body: fields.toString(),
   });
-  if (isSecondFactorPage(posted.body)) {
+  console.log(
+    `[uji-live] totp result path=${safePath(posted.url)} form=${stillOnCodeForm(posted.body)}`,
+  );
+  if (stillOnCodeForm(posted.body)) {
     throw new Error(tr("err.badOtp"));
   }
   return posted;
